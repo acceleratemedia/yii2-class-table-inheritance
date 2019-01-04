@@ -1,6 +1,6 @@
 {
-    "name": "brianvb/yii2-crud",
-    "description": "CRUD actions",
+    "name": "brianvb/yii2-class-table-inheritance",
+    "description": "An attempt to provide the Class Table Inheritance Pattern to the Yii2 framework. Its motivation is to fake inheritance between two ActiveRecord classes.",
     "type": "yii2-extension",
     "require": {
         "yiisoft/yii2": "^2.0"
@@ -14,7 +14,7 @@
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
-            "bvb\\crud\\": "src"
+            "bvb\\cti\\": "src"
         }
     },
     "repositories": [
