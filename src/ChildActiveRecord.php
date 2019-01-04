@@ -1,6 +1,6 @@
 <?php
 
-namespace common\db;
+namespace bvb\cti;
 
 use yii\base\InvalidArgumentException;
 use yii\base\InvalidConfigException;
@@ -213,7 +213,7 @@ class ChildActiveRecord extends ActiveRecord
      */
     public function rules()
     {
-        $rules = method_exists($this, 'validationRules') ? $this->validationRules() : [];
+        $rules = static::validationRules();
         $parent_rules = method_exists($this->getParentModel(), 'validationRules') ? $this->getParentModel()->validationRules() : [];
         foreach($parent_rules as $rule_array){
             if($rule_array[1] != 'unique'){
