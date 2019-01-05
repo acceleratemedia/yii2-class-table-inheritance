@@ -2,8 +2,10 @@
 
 namespace bvb\cti;
 
+use ReflectionProperty;
 use yii\base\InvalidArgumentException;
 use yii\base\InvalidConfigException;
+use yii\base\UnknownMethodException;
 use yii\base\UnknownPropertyException;
 use yii\db\ActiveRecord;
 
@@ -114,6 +116,33 @@ class ChildActiveRecord extends ActiveRecord
         }
         return true;
     }
+
+    /**
+     * Works in tandem with hasMethod() to be able to call functions on the 'parent' from the 'child'
+     * {@inheritdoc}
+     */
+    public function __call($name, $params)
+    {
+        try{
+            parent::__call($name, $params);
+        }catch(UnknownMethodException $e){
+            call_user_func_array([$this->getParentModel(), $name], $params);
+        }
+    }
+
+    /**
+     * Override this function to add methods from parent class to this one
+     * This helps with inline validation functions in rules() from the parent class
+     * being inherited and able to be run on the child class
+     * {@inheritdoc}
+     */
+    public function hasMethod($name, $checkBehaviors = true)
+    {
+        if(!parent::hasMethod($name, $checkBehaviors)){
+            return $this->getParentModel()->hasMethod($name, $checkBehaviors);
+        }
+    }
+
 
     /**
      * Mimics the ActiveRecord relations and adds one for the owner to their parent model
@@ -243,29 +272,31 @@ class ChildActiveRecord extends ActiveRecord
             return false;
         }
 
-        // --- Loop through all attributes on a Parent model and apply the owner's values to the Parent model for saving
+        // --- Loop through all attributes on a Parent model and apply the child's values to the Parent model for saving
         foreach($this->getParentModel()->attributes as $attribute_name => $value){
             if(in_array($attribute_name, $this->shared_attributes)){
                 // --- ignore variables we don't want to apply to the class using this behavior
                 continue;
             }
-            $this->getParentModel()->{$attribute_name} = $this->owner->{$attribute_name};
+            $this->getParentModel()->{$attribute_name} = $this->{$attribute_name};
         }
 
         // --- We need to do this for other class properties that aren't yii magic attributes and are actual member vairables
         foreach(get_class_vars($this->parent_class) as $attribute_name => $value){
-            if(in_array($attribute_name, $this->shared_attributes)){
+            // --- Make sure the property isn't static
+            $property = new ReflectionProperty($this->parent_class, $attribute_name);
+            if(in_array($attribute_name, $this->shared_attributes) || $property->isStatic()){
                 // --- ignore variables we don't want to apply to the class using this behavior
                 continue;
             }
-            $this->getParentModel()->{$attribute_name} = $this->owner->{$attribute_name};
+            $this->getParentModel()->{$attribute_name} = $this->{$attribute_name};
         }
 
         if(!$this->getParentModel()->save()){
-            // --- Apply any validation errors that may be on the Parent the owner model model just in case
+            // --- Apply any validation errors that may be on the Parent the child model model just in case
             foreach($this->getParentModel()->getErrors() as $attribute_name => $errors){
                 foreach($errors as  $error){
-                    $this->owner->addError($attribute_name, $error);    
+                    $this->addError($attribute_name, $error);    
                 }
             }
             return false;
