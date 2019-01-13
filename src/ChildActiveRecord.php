@@ -76,7 +76,11 @@ class ChildActiveRecord extends ActiveRecord
         try{
             return parent::__get($name);   
         } catch(UnknownPropertyException $e){
-            return $this->getParentModel()->{$name};
+            try{
+                return $this->getParentModel()->{$name};
+            } catch(UnknownPropertyException $f){
+                throw $e;
+            }
         }
     }
 
@@ -101,7 +105,11 @@ class ChildActiveRecord extends ActiveRecord
         try{
             parent::__set($name, $value);   
         } catch(UnknownPropertyException $e){
-            $this->getParentModel()->{$name} = $value;
+            try{
+               $this->getParentModel()->{$name} = $value;
+            } catch(UnknownPropertyException $f){
+                throw $e;
+            }
         }
     }
 
