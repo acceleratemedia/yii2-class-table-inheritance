@@ -25,6 +25,6 @@ class ChildActiveQuery extends ActiveQuery
             }
         }
         
-        return parent::populate($models);
+        return $models;
     }
 }
