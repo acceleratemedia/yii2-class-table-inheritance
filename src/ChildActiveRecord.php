@@ -322,6 +322,7 @@ class ChildActiveRecord extends ActiveRecord
      */
     public function afterDelete()
     {
+        parent::afterDelete();
         $this->getParentModel()->delete();
     }
 }
