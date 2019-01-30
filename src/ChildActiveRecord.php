@@ -179,7 +179,7 @@ class ChildActiveRecord extends ActiveRecord
                     $this->_parent_model = new $this->parent_class;
                 }
             } else {
-                $this->_parent_model = $this->parentRelation;
+                return $this->parentRelation;
             }
         }
 
@@ -323,6 +323,6 @@ class ChildActiveRecord extends ActiveRecord
     public function afterDelete()
     {
         parent::afterDelete();
-        $this->getParentModel()->delete();
+        $this->parentRelation->delete();
     }
 }
