@@ -119,7 +119,7 @@ class ChildActiveRecord extends ActiveRecord
      */
     public function canSetProperty($name, $checkVars = true, $checkBehaviors = true)
     {
-        if(!parent::canSetProperty($name, $checkVars)){
+        if(!parent::canSetProperty($name, $checkVars, $checkBehaviors)){
             return $this->getParentModel()->canSetProperty($name, $checkVars, $checkBehaviors);
         }
         return true;
