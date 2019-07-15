@@ -14,7 +14,7 @@ use yii\db\ActiveRecord;
  * ActiveRecord model by accessing all of the properties of the parent
  * on the child
  */
-class ChildActiveRecord extends ActiveRecord
+class CtiActiveRecord extends ActiveRecord
 {
     /**
      * Parent classname
@@ -57,7 +57,7 @@ class ChildActiveRecord extends ActiveRecord
     public function init()
     {
         if($this->parent_class === null){
-            throw new InvalidConfigException('Classes extending from ChildActiveRecord must declare a property `parent_class` which should be the classname of the ActiveRecord class that '.static::class.' considered a child of');
+            throw new InvalidConfigException('Classes extending from CtiActiveRecord must declare a property `parent_class` which should be the classname of the ActiveRecord class that '.static::class.' considered a child of');
         }
         if($this->foreign_key_field === null){
             throw new InvalidConfigException('Classes implementing '.self::class.' must declare a property `foreign_key_field` whose value is a string of the foreign key to the table that represents the parent model/class/object of '.static::class);
@@ -187,13 +187,13 @@ class ChildActiveRecord extends ActiveRecord
     }
 
     /**
-     * Use our ChildActiveQuery class to make sure that when forming an array from result
+     * Use our CtiActiveQuery class to make sure that when forming an array from result
      * we will include certain parent table attributes in the result for this (child) result
      * Also, always inner join with the parent table to get that data
      * {@inheritdoc}
      */
     public static function find() {
-        $query = new ChildActiveQuery(get_called_class());
+        $query = new CtiActiveQuery(get_called_class());
         return $query->innerJoinWith(['parentRelation']);
     }
 
