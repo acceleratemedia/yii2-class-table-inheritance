@@ -241,33 +241,28 @@ class CtiActiveRecord extends ActiveRecord
     }
 
     /**
-     * Implement our own custom implementation of rules() where the child and parent class
-     * must now put their rules in a static class called validationRules() and we will
-     * apply all of them to the child model. There are some rules that are exceptions we don't
-     * want to apply to the child class such as the UNIQUE validator so we have to find and 
-     * account for those
+     * Add all of the parent model validation rules. Uses ArrayHelper::merge() so that if a user
+     * keys their rules in the parent model they can then unset and alter them in the child model
      * {@inheritdoc}
      */
-    public function rules()
+    public function createValidators()
     {
-        $rules = static::validationRules();
-        $parent_rules = method_exists($this->getParentModel(), 'validationRules') ? $this->getParentModel()->validationRules() : [];
-        foreach($parent_rules as $rule_array){
-            if($rule_array[1] != 'unique'){
-                $rules[] = $rule_array;
+        $validators = new ArrayObject();
+        $rules = ArrayHelper::merge(
+            $this->getParentModel()->rules(),
+            $this->rules()
+        );
+        foreach ($rules as $rule) {
+            if ($rule instanceof Validator) {
+                $validators->append($rule);
+            } elseif (is_array($rule) && isset($rule[0], $rule[1])) { // attributes, validator type
+                $validator = Validator::createValidator($rule[1], $this, (array) $rule[0], array_slice($rule, 2));
+                $validators->append($validator);
+            } else {
+                throw new InvalidConfigException('Invalid validation rule: a rule must specify both attribute names and validator type.');
             }
         }
-        return $rules;
-    }
-
-    /**
-     * Empty implementation of this function so we make sure that it is set on the 
-     * classes extending from this one
-     * @return array
-     */
-    static function validationRules()
-    {
-        return [];
+        return $validators;
     }
 
     /**
