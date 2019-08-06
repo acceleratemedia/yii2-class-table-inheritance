@@ -325,4 +325,14 @@ class CtiActiveRecord extends ActiveRecord
         parent::afterDelete();
         $this->parentRelation->delete();
     }
+
+    /**
+     * Returns the list of all attribute names of the model.
+     * The default implementation will return all column names of the table associated with this AR class.
+     * @return array list of attribute names.
+     */
+    public function attributes()
+    {
+        return array_merge(parent::attributes(), array_keys($this->parent_class::getTableSchema()->columns));
+    }
 }
