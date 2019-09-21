@@ -18,7 +18,7 @@ class CtiActiveQuery extends ActiveQuery
         if ($this->asArray) {
             foreach($models as &$model){
                 foreach($model['parentRelation'] as $attribute => $value){
-                    if(in_array($attribute, $this->modelClass::$attributes_to_inherit)){
+                    if(in_array($attribute, $this->modelClass::$parentAttributesInherited)){
                         $model[$attribute] = $value;
                     }
                 }
