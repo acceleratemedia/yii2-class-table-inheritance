@@ -13,20 +13,6 @@ trait CtiSearchModelTrait
     /**
      * {@inheritdoc}
      */
-    public function rules()
-    {
-        $rules = $this->getParentSearchModelClass()::instance()::rules();
-
-        if(method_exists($this, 'ruleAdjustments')){
-            $rules = ArrayHelper::merge($rules, $this->ruleAdjustments());
-        }
-
-        return $rules;
-    }
-
-    /**
-     * @inheritdoc
-     */
     public function scenarios()
     {
         // bypass scenarios() implementation in the parent class
@@ -35,17 +21,22 @@ trait CtiSearchModelTrait
 
     /**
      * Creates data provider instance with search query applied
+     * Classes using this trait can implement a function called searchAdjustments
+     * which will allow them to manipulate the returned ActiveDataProvider
+     * which will also give them access to the query to make any adjustments there
      *
      * @param array $params
-     *
      * @return ActiveDataProvider
      */
     public function search($params)
     {
         $activeDataProvider = $this->getParentSearchModelClass()::instance()->search($params);
 
-        if(method_exists($this, 'ruleAdjustments')){
-            $activeDataProvider = $this->ruleAdjustments($params, $activeDataProvider);
+        // --- Set the modelClass for the query to be the one implementing this trait
+        $activeDataProvider->query->modelClass = static::class;
+
+        if(method_exists($this, 'searchAdjustments')){
+            $activeDataProvider = $this->searchAdjustments($params, $activeDataProvider);
         }
 
         return $activeDataProvider;
