@@ -2,12 +2,15 @@
 
 namespace bvb\cti;
 
+use ArrayObject;
 use ReflectionProperty;
 use yii\base\InvalidArgumentException;
 use yii\base\InvalidConfigException;
 use yii\base\UnknownMethodException;
 use yii\base\UnknownPropertyException;
 use yii\db\ActiveRecord;
+use yii\helpers\ArrayHelper;
+use yii\validators\Validator;
 
 /**
  * Meant to allow us to use an ActiveRecord model as a child of another
@@ -20,29 +23,39 @@ class CtiActiveRecord extends ActiveRecord
      * Parent classname
      * @var string
      */
-    protected $parent_class;
+    protected $parentClass;
 
     /**
-     * Gives default attributes values to the parent model. Key is the name of the attribute 
-     * on the parent model and the value is the desired default value
+     * Attribtue belonging to the table that this model represents
      * @var array
      */
-    static $attributes_to_inherit;
+    protected $ownAttributes;
 
     /**
      * Name of the field on the attached model that is a foreign key to the parent record
      * @var string
      */
-    protected $foreign_key_field;
+    protected $foreignKeyField;
 
     /**
-     * Shared attribtues is a list of attributes shared between the parent and child
-     * that we do not want to overwrite on the child model when applying parent
-     * properties to the child . This is mainly for when using asArray in db queries
-     * since by default magic methods will return the correct property
+     * Attributes which we do not want to apply to the child from the parent
      * @var array
      */
-    protected $shared_attributes;
+    protected $parentAttributesIgnored = [];
+
+    /**
+     * Attributes which we want applied to the child model from the parent
+     * This must be static because we must be able to access it as a class-level
+     * property when populating models using asArray in CtiActiveQuery
+     * @var array
+     */
+    static $parentAttributesInherited = [];
+
+    /**
+     * A list of default values we want applied to the parent model
+     * @var array
+     */
+    protected $parentAttributeDefaults = [];
 
     /**
      * Contains the model of the parent class
@@ -56,14 +69,23 @@ class CtiActiveRecord extends ActiveRecord
      */
     public function init()
     {
-        if($this->parent_class === null){
-            throw new InvalidConfigException('Classes extending from CtiActiveRecord must declare a property `parent_class` which should be the classname of the ActiveRecord class that '.static::class.' considered a child of');
+        if($this->parentClass === null){
+            throw new InvalidConfigException('Classes extending from CtiActiveRecord must declare a property `parentClass` which should be the classname of the ActiveRecord class that '.static::class.' considered a child of');
         }
-        if($this->foreign_key_field === null){
-            throw new InvalidConfigException('Classes implementing '.self::class.' must declare a property `foreign_key_field` whose value is a string of the foreign key to the table that represents the parent model/class/object of '.static::class);
+        if($this->foreignKeyField === null){
+            throw new InvalidConfigException('Classes implementing '.self::class.' must declare a property `foreignKeyField` whose value is a string of the foreign key to the table that represents the parent model/class/object of '.static::class);
         }
-        if(static::$attributes_to_inherit === null){
-            throw new InvalidConfigException('Classes implementing '.self::class.' must declare a static property `attributes_to_inherit` whose value is a array of attributes from the parent model/class/table that should be added to the array from query results for  '.static::class);
+        if(static::$parentAttributesInherited === null){
+            throw new InvalidConfigException('Classes implementing '.self::class.' must declare a static property `parentAttributesInherited` whose value is a array of attributes from the parent model/class/table that should are intended to be inherited by  '.static::class);
+        }
+
+        // --- Sets our attribute defaults so they will pass up the parent if needed
+        // --- Set them this way rather than mass assigning attributes because mass
+        // --- assignment will check for safe attributes, creating validators before
+        // --- the record has initialized, which will call getting the parent model
+        // --- and we will always have an empty parent model
+        foreach($this->parentAttributeDefaults as $attributeName => $attributeValue){
+            $this->{$attributeName} = $attributeValue;
         }
     }
 
@@ -158,7 +180,7 @@ class CtiActiveRecord extends ActiveRecord
      */
     public function getParentRelation()
     {
-        return $this->hasOne($this->parent_class, ['id' => $this->foreign_key_field]);
+        return $this->hasOne($this->parentClass, ['id' => $this->foreignKeyField]);
     }
 
     /**
@@ -173,10 +195,10 @@ class CtiActiveRecord extends ActiveRecord
     {
         if(empty($this->_parent_model)){
             if($this->isNewRecord){
-                if(isset($this->parent_attribute_defaults)){
-                    $this->_parent_model = new $this->parent_class($this->parent_attribute_defaults);
+                if(!empty($this->parentAttributeDefaults)){
+                    $this->_parent_model = new $this->parentClass($this->parentAttributeDefaults);
                 } else {
-                    $this->_parent_model = new $this->parent_class;
+                    $this->_parent_model = new $this->parentClass;
                 }
             } else {
                 return $this->parentRelation;
@@ -198,6 +220,19 @@ class CtiActiveRecord extends ActiveRecord
     }
 
     /**
+     * After we do the find, apply all of the parent attributes to inherit to the current model
+     * {@inheritdoc}
+     */
+    public function afterFind() {
+        parent::afterFind();
+        foreach($this->parentRelation->attributes as $attributeName => $attributeValue){
+            if(in_array($attributeName, static::$parentAttributesInherited)){
+                $this->{$attributeName} = $attributeValue;
+            }
+        }
+    }
+
+    /**
      * Extend the default functionality of this to add our parentRelation in there. Ultimately,
      * this allows us use the 'with' functionality of ActiveQueries to join with the parent table/class
      * without explicitly declaring that relationship
@@ -209,7 +244,7 @@ class CtiActiveRecord extends ActiveRecord
             return parent::getRelation($name);   
         } catch(InvalidArgumentException $e){
             // --- First try to see if they are getting the 'parent' model using a magic relation name
-            $reflect = new \ReflectionClass($this->parent_class);
+            $reflect = new \ReflectionClass($this->parentClass);
             $magic_relation_name = lcfirst($reflect->getShortName());
             if($name == $magic_relation_name){
                 return $this->getParentRelation();
@@ -252,6 +287,7 @@ class CtiActiveRecord extends ActiveRecord
             $this->getParentModel()->rules(),
             $this->rules()
         );
+
         foreach ($rules as $rule) {
             if ($rule instanceof Validator) {
                 $validators->append($rule);
@@ -277,7 +313,10 @@ class CtiActiveRecord extends ActiveRecord
 
         // --- Loop through all attributes on a Parent model and apply the child's values to the Parent model for saving
         foreach($this->getParentModel()->attributes as $attribute_name => $value){
-            if(in_array($attribute_name, $this->shared_attributes)){
+            if(
+                in_array($attribute_name, $this->parentAttributesIgnored) ||
+                in_array($attribute_name, $this->getOwnAttributes())
+            ){
                 // --- ignore variables we don't want to apply to the class using this behavior
                 continue;
             }
@@ -285,16 +324,19 @@ class CtiActiveRecord extends ActiveRecord
         }
 
         // --- We need to do this for other class properties that aren't yii magic attributes and are actual member vairables
-        foreach(get_class_vars($this->parent_class) as $attribute_name => $value){
+        foreach(get_class_vars($this->parentClass) as $attribute_name => $value){
             // --- Make sure the property isn't static
-            $property = new ReflectionProperty($this->parent_class, $attribute_name);
-            if(in_array($attribute_name, $this->shared_attributes) || $property->isStatic()){
+            $property = new ReflectionProperty($this->parentClass, $attribute_name);
+            if(
+                in_array($attribute_name, $this->parentAttributesIgnored) || 
+                in_array($attribute_name, $this->getOwnAttributes()) ||
+                $property->isStatic()
+            ){
                 // --- ignore variables we don't want to apply to the class using this behavior
                 continue;
             }
             $this->getParentModel()->{$attribute_name} = $this->{$attribute_name};
         }
-
         if(!$this->getParentModel()->save()){
             // --- Apply any validation errors that may be on the Parent the child model model just in case
             foreach($this->getParentModel()->getErrors() as $attribute_name => $errors){
@@ -305,7 +347,7 @@ class CtiActiveRecord extends ActiveRecord
             return false;
         } else {
             // --- Sets the foreign key field for this model to the id of the saved parent
-            $this->{$this->foreign_key_field} = $this->getParentModel()->id;
+            $this->{$this->foreignKeyField} = $this->getParentModel()->id;
         }
 
         return true;
@@ -322,12 +364,59 @@ class CtiActiveRecord extends ActiveRecord
     }
 
     /**
-     * Returns the list of all attribute names of the model.
-     * The default implementation will return all column names of the table associated with this AR class.
-     * @return array list of attribute names.
+     * Include attribute of the parent database table as well as the attributes
+     * for the current model
+     * {@inheritdoc}
      */
     public function attributes()
     {
-        return array_merge(parent::attributes(), array_keys($this->parent_class::getTableSchema()->columns));
+        return array_merge(parent::attributes(), array_keys($this->parentClass::getTableSchema()->columns));
+    }
+
+    /**
+     * Exact function as in parent but does not include attribtues from parent
+     * model that are in that table in the insert statement
+     * {@inheritdoc}
+     */
+    protected function insertInternal($attributes = null)
+    {
+        if (!$this->beforeSave(true)) {
+            return false;
+        }
+        $values = $this->getDirtyAttributes($attributes);
+        /** Start our edits */
+        foreach($values as $attributeName => $attributeValue){
+            if(!in_array($attributeName, $this->getOwnAttributes())){
+                unset($values[$attributeName]);
+            }
+        }
+        /** End our edits */
+        if (($primaryKeys = static::getDb()->schema->insert(static::tableName(), $values)) === false) {
+            return false;
+        }
+        foreach ($primaryKeys as $name => $value) {
+            $id = static::getTableSchema()->columns[$name]->phpTypecast($value);
+            $this->setAttribute($name, $id);
+            $values[$name] = $id;
+        }
+
+        $changedAttributes = array_fill_keys(array_keys($values), null);
+        $this->setOldAttributes($values);
+        $this->afterSave(true, $changedAttributes);
+
+        return true;
+    }
+
+    /**
+     * Gets the list of attributes which belong to only this model from the
+     * database table for it (not the parent)
+     * @return array
+     */
+    public function getOwnAttributes()
+    {
+        if(empty($this->ownAttributes)){
+            $this->ownAttributes = array_keys(static::getTableSchema()->columns);    
+        }
+        return $this->ownAttributes;
     }
 }
