@@ -235,7 +235,9 @@ class CtiActiveRecord extends ActiveRecord
     /**
      * Extend the default functionality of this to add our parentRelation in there. Ultimately,
      * this allows us use the 'with' functionality of ActiveQueries to join with the parent table/class
-     * without explicitly declaring that relationship
+     * without explicitly declaring that relationship. Also, this will check for a relation
+     * on the parent model and create a new relation for this model onto that one 'via'
+     * the parentRelation
      * {@inheritdoc}
      */
     public function getRelation($name, $throwException = true)
@@ -248,6 +250,11 @@ class CtiActiveRecord extends ActiveRecord
             $magic_relation_name = lcfirst($reflect->getShortName());
             if($name == $magic_relation_name){
                 return $this->getParentRelation();
+            }
+            if(method_exists($this->getParentModel(), 'get'.ucFirst($name))){
+                $parentRelation = $this->getParentModel()->getRelation($name);
+                $parentRelation->primaryModel = $this;
+                return $parentRelation->via('parentRelation');
             }
             throw $e;
         }
