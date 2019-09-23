@@ -422,6 +422,52 @@ class CtiActiveRecord extends ActiveRecord
     }
 
     /**
+     * Exact function as in parent but does not include attribtues from parent
+     * model that are in that table in the update statement
+     * {@inheritdoc}
+     */
+    protected function updateInternal($attributes = null)
+    {
+        if (!$this->beforeSave(false)) {
+            return false;
+        }
+        $values = $this->getDirtyAttributes($attributes);
+        /** Start our edits */
+        foreach($values as $attributeName => $attributeValue){
+            if(!in_array($attributeName, $this->getOwnAttributes())){
+                unset($values[$attributeName]);
+            }
+        }
+        /** End our edits */
+        if (empty($values)) {
+            $this->afterSave(false, $values);
+            return 0;
+        }
+        $condition = $this->getOldPrimaryKey(true);
+        $lock = $this->optimisticLock();
+        if ($lock !== null) {
+            $values[$lock] = $this->$lock + 1;
+            $condition[$lock] = $this->$lock;
+        }
+        // We do not check the return value of updateAll() because it's possible
+        // that the UPDATE statement doesn't change anything and thus returns 0.
+        $rows = static::updateAll($values, $condition);
+        if ($lock !== null && !$rows) {
+            throw new StaleObjectException('The object being updated is outdated.');
+        }
+        if (isset($values[$lock])) {
+            $this->$lock = $values[$lock];
+        }
+        $changedAttributes = [];
+        foreach ($values as $name => $value) {
+            $changedAttributes[$name] = isset($this->_oldAttributes[$name]) ? $this->_oldAttributes[$name] : null;
+            $this->_oldAttributes[$name] = $value;
+        }
+        $this->afterSave(false, $changedAttributes);
+        return $rows;
+    }
+
+    /**
      * Gets the list of attributes which belong to only this model from the
      * database table for it (not the parent)
      * @return array
