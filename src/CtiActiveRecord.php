@@ -290,8 +290,15 @@ class CtiActiveRecord extends ActiveRecord
     public function createValidators()
     {
         $validators = new ArrayObject();
+        $parentRules = $this->getParentModel()->rules();
+        foreach($parentRules as $i => $parentRule){
+            if($parentRule[1] == \bvb\content\backend\validators\InheritanceUniqueValidator::class){
+                unset($parentRules[$i]);
+            }
+        }
+
         $rules = ArrayHelper::merge(
-            $this->getParentModel()->rules(),
+            $parentRules,
             $this->rules()
         );
 
