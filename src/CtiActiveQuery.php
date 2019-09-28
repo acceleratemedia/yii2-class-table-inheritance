@@ -17,10 +17,15 @@ class CtiActiveQuery extends ActiveQuery
         // --- to the modelclass using CtiActiveQuery
         if ($this->asArray) {
             foreach($models as &$model){
-                foreach($model['parentRelation'] as $attribute => $value){
-                    if(in_array($attribute, $this->modelClass::$parentAttributesInherited)){
-                        $model[$attribute] = $value;
-                    }
+                // --- Check the parent relation is set. One scenario where it may not be is 
+                // --- when the UniqueValidator runs and uses asArray but doesn't load relations
+                // --- because it doesn't need them to check for uniqueness
+                if(isset($model['parentRelation'])){
+                    foreach($model['parentRelation'] as $attribute => $value){
+                        if(in_array($attribute, $this->modelClass::instance()->parentAttributesInherited())){
+                            $model[$attribute] = $value;
+                        }
+                    }                    
                 }
             }
         }
