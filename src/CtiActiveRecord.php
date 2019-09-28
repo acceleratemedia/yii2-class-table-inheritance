@@ -32,36 +32,22 @@ class CtiActiveRecord extends ActiveRecord
     protected $ownAttributes;
 
     /**
-     * Name of the field on the attached model that is a foreign key to the parent record
+     * Attribute name on the extending class that is a foreign key to $parentClass
      * @var string
      */
     protected $foreignKeyField;
-
-    /**
-     * Attributes which we do not want to apply to the child from the parent
-     * @var array
-     */
-    protected $parentAttributesIgnored = [];
-
-    /**
-     * Attributes which we want applied to the child model from the parent
-     * This must be static because we must be able to access it as a class-level
-     * property when populating models using asArray in CtiActiveQuery
-     * @var array
-     */
-    static $parentAttributesInherited = [];
-
-    /**
-     * A list of default values we want applied to the parent model
-     * @var array
-     */
-    protected $parentAttributeDefaults = [];
 
     /**
      * Contains the model of the parent class
      * @var mixed
      */
     protected $_parent_model;
+
+    /**
+     * Just need this because it's private and updateInternal uses it
+     * {@inheritdoc}
+     */
+    private $_oldAttributes;
 
     /**
      * Make sure that the
@@ -75,7 +61,7 @@ class CtiActiveRecord extends ActiveRecord
         if($this->foreignKeyField === null){
             throw new InvalidConfigException('Classes implementing '.self::class.' must declare a property `foreignKeyField` whose value is a string of the foreign key to the table that represents the parent model/class/object of '.static::class);
         }
-        if(static::$parentAttributesInherited === null){
+        if($this->parentAttributesInherited() === null){
             throw new InvalidConfigException('Classes implementing '.self::class.' must declare a static property `parentAttributesInherited` whose value is a array of attributes from the parent model/class/table that should are intended to be inherited by  '.static::class);
         }
 
@@ -84,7 +70,7 @@ class CtiActiveRecord extends ActiveRecord
         // --- assignment will check for safe attributes, creating validators before
         // --- the record has initialized, which will call getting the parent model
         // --- and we will always have an empty parent model
-        foreach($this->parentAttributeDefaults as $attributeName => $attributeValue){
+        foreach($this->parentAttributeDefaults() as $attributeName => $attributeValue){
             $this->{$attributeName} = $attributeValue;
         }
     }
@@ -173,6 +159,35 @@ class CtiActiveRecord extends ActiveRecord
         }
     }
 
+    /**
+     * Attributes which we do not want to apply to the child from the parent
+     * @return array
+     */
+    public function parentAttributesIgnored()
+    {
+        return [];
+    }
+
+    /**
+     * Attributes which we want applied to the child model from the parent
+     * This must be static because we must be able to access it as a class-level
+     * property when populating models using asArray in CtiActiveQuery
+     * @return array
+     */
+    public function parentAttributesInherited()
+    {
+        return [];
+    }
+
+    /**
+     * A list of default values we want applied to the parent model
+     * @return array
+     */
+    public function parentAttributeDefaults()
+    {
+        return [];
+    }
+
 
     /**
      * Mimics the ActiveRecord relations and adds one for the owner to their parent model
@@ -195,8 +210,8 @@ class CtiActiveRecord extends ActiveRecord
     {
         if(empty($this->_parent_model)){
             if($this->isNewRecord){
-                if(!empty($this->parentAttributeDefaults)){
-                    $this->_parent_model = new $this->parentClass($this->parentAttributeDefaults);
+                if(!empty($this->parentAttributeDefaults())){
+                    $this->_parent_model = new $this->parentClass($this->parentAttributeDefaults());
                 } else {
                     $this->_parent_model = new $this->parentClass;
                 }
@@ -226,7 +241,7 @@ class CtiActiveRecord extends ActiveRecord
     public function afterFind() {
         parent::afterFind();
         foreach($this->parentRelation->attributes as $attributeName => $attributeValue){
-            if(in_array($attributeName, static::$parentAttributesInherited)){
+            if(in_array($attributeName, $this->parentAttributesInherited())){
                 $this->{$attributeName} = $attributeValue;
             }
         }
@@ -324,12 +339,13 @@ class CtiActiveRecord extends ActiveRecord
         if(!parent::beforeSave($insert)){
             return false;
         }
-
+        \Yii::info(\yii\helpers\VarDumper::dumpAsString($this));
         // --- Loop through all attributes on a Parent model and apply the child's values to the Parent model for saving
         foreach($this->getParentModel()->attributes as $attribute_name => $value){
             if(
-                in_array($attribute_name, $this->parentAttributesIgnored) ||
-                in_array($attribute_name, $this->getOwnAttributes())
+                in_array($attribute_name, $this->parentAttributesIgnored()) ||
+                in_array($attribute_name, $this->getOwnAttributes()) ||
+                !in_array($attribute_name, $this->parentAttributesInherited() )
             ){
                 // --- ignore variables we don't want to apply to the class using this behavior
                 continue;
@@ -342,8 +358,9 @@ class CtiActiveRecord extends ActiveRecord
             // --- Make sure the property isn't static
             $property = new ReflectionProperty($this->parentClass, $attribute_name);
             if(
-                in_array($attribute_name, $this->parentAttributesIgnored) || 
+                in_array($attribute_name, $this->parentAttributesIgnored()) || 
                 in_array($attribute_name, $this->getOwnAttributes()) ||
+                !in_array($attribute_name, $this->parentAttributesInherited() ) ||
                 $property->isStatic()
             ){
                 // --- ignore variables we don't want to apply to the class using this behavior
