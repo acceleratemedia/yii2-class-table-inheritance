@@ -26,7 +26,7 @@ class CtiActiveRecord extends ActiveRecord
     protected $parentClass;
 
     /**
-     * Attribtue belonging to the table that this model represents
+     * Attribute belonging to the table that this model represents
      * @var array
      */
     protected $ownAttributes;
@@ -339,7 +339,7 @@ class CtiActiveRecord extends ActiveRecord
         if(!parent::beforeSave($insert)){
             return false;
         }
-        \Yii::info(\yii\helpers\VarDumper::dumpAsString($this));
+
         // --- Loop through all attributes on a Parent model and apply the child's values to the Parent model for saving
         foreach($this->getParentModel()->attributes as $attribute_name => $value){
             if(
