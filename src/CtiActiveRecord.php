@@ -73,6 +73,7 @@ class CtiActiveRecord extends ActiveRecord
         foreach($this->parentAttributeDefaults() as $attributeName => $attributeValue){
             $this->{$attributeName} = $attributeValue;
         }
+        parent::init();
     }
 
     /**
