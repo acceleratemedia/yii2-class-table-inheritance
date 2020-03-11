@@ -57,9 +57,6 @@ class CtiActiveRecord extends ActiveRecord
         if($this->foreignKeyField === null){
             throw new InvalidConfigException('Classes implementing '.self::class.' must declare a property `foreignKeyField` whose value is a string of the foreign key to the table that represents the parent model/class/object of '.static::class);
         }
-        if($this->parentAttributesInherited() === null){
-            throw new InvalidConfigException('Classes implementing '.self::class.' must declare a static property `parentAttributesInherited` whose value is a array of attributes from the parent model/class/table that should are intended to be inherited by  '.static::class);
-        }
 
         // --- Sets our attribute defaults so they will pass up the parent if needed
         // --- Set them this way rather than mass assigning attributes because mass
