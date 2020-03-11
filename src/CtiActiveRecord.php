@@ -106,7 +106,14 @@ class CtiActiveRecord extends ActiveRecord
     {
         try{
             parent::__set($name, $value);
-            if(in_array($name, $this->parentAttributesInherited())){
+            if(
+                in_array($name, $this->parentAttributesInherited()) && 
+                // --- Perform this check because in init() we are setting the variables
+                // --- on the CtiActiveRecord instance and we don't want to pass that up
+                // --- to the parent model in init() beacuse it will always create a new
+                // --- record for it
+                !empty($this->_parent_model) 
+            ){
                 // --- If it's a 'shared' attribute between parent and child
                 // --- set it on the parent too
                 $this->getParentModel()->{$name} = $value;
