@@ -308,7 +308,11 @@ class CtiActiveRecord extends ActiveRecord
         $validators = new ArrayObject();
         $parentRules = $this->getParentModel()->rules();
         foreach($parentRules as $i => $parentRule){
-            if($parentRule[1] == \bvb\content\backend\validators\InheritanceUniqueValidator::class){
+            if(
+                // --- Ignore inline validators! Running it once on the parentModel is enough
+                method_exists($this->getParentModel(), $parentRule[1]) || 
+                $parentRule[1] == \bvb\content\backend\validators\InheritanceUniqueValidator::class
+            ){
                 unset($parentRules[$i]);
             }
         }
