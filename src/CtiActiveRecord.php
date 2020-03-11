@@ -43,11 +43,6 @@ class CtiActiveRecord extends ActiveRecord
      */
     protected $_parent_model;
 
-    /**
-     * Just need this because it's private and updateInternal uses it
-     * {@inheritdoc}
-     */
-    private $_oldAttributes;
 
     /**
      * Make sure that the
@@ -478,8 +473,8 @@ class CtiActiveRecord extends ActiveRecord
         }
         $changedAttributes = [];
         foreach ($values as $name => $value) {
-            $changedAttributes[$name] = isset($this->_oldAttributes[$name]) ? $this->_oldAttributes[$name] : null;
-            $this->_oldAttributes[$name] = $value;
+            $changedAttributes[$name] = $this->getOldAttribute($name); // --- UPDATED TO NOT USE _oldAttribtues
+            $this->setOldAttribute($name, $value); // --- UPDATED TO NOT USE _oldAttribtues
         }
         $this->afterSave(false, $changedAttributes);
         return $rows;
