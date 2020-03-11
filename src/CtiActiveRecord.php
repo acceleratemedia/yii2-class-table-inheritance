@@ -75,13 +75,26 @@ class CtiActiveRecord extends ActiveRecord
      */
     public function __get($name)
     {
-        try{
-            return parent::__get($name);   
-        } catch(UnknownPropertyException $e){
+        if(
+            in_array($name, $this->parentAttributesInherited()) && 
+            // --- Perform this check because in init() we are setting the variables
+            // --- on the CtiActiveRecord instance and we don't want to pass that up
+            // --- to the parent model in init() beacuse it will always create a new
+            // --- record for it
+            !empty($this->_parent_model) 
+        ){
+            // --- If it's a 'shared' attribute between parent and child
+            // --- get it from the parent in case it's changed there
+            return $this->getParentModel()->{$name};
+        } else {
             try{
-                return $this->getParentModel()->{$name};
-            } catch(UnknownPropertyException $f){
-                throw $e;
+                return parent::__get($name);   
+            } catch(UnknownPropertyException $e){
+                try{
+                    return $this->getParentModel()->{$name};
+                } catch(UnknownPropertyException $f){
+                    throw $e;
+                }
             }
         }
     }
