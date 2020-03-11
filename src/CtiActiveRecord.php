@@ -43,9 +43,10 @@ class CtiActiveRecord extends ActiveRecord
      */
     protected $_parent_model;
 
-
     /**
      * Make sure that the
+     * Do not run any functions in here or any subclass that would force 
+     * $this->getParentModel() to run because it will load it before it is ready
      * {@inheritdoc}
      */
     public function init()
@@ -107,7 +108,12 @@ class CtiActiveRecord extends ActiveRecord
     public function __set($name, $value)
     {
         try{
-            parent::__set($name, $value);   
+            parent::__set($name, $value);
+            if(in_array($name, $this->parentAttributesInherited())){
+                // --- If it's a 'shared' attribute between parent and child
+                // --- set it on the parent too
+                $this->getParentModel()->{$name} = $value;
+            }
         } catch(UnknownPropertyException $e){
             try{
                $this->getParentModel()->{$name} = $value;
@@ -216,7 +222,6 @@ class CtiActiveRecord extends ActiveRecord
                 return $this->parentRelation;
             }
         }
-
         return $this->_parent_model;
     }
 
