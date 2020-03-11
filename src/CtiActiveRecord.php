@@ -44,13 +44,9 @@ class CtiActiveRecord extends ActiveRecord
     protected $_parent_model;
 
     /**
-     * Just need this because it's private and updateInternal uses it
-     * {@inheritdoc}
-     */
-    private $_oldAttributes;
-
-    /**
      * Make sure that the
+     * Do not run any functions in here or any subclass that would force 
+     * $this->getParentModel() to run because it will load it before it is ready
      * {@inheritdoc}
      */
     public function init()
@@ -60,9 +56,6 @@ class CtiActiveRecord extends ActiveRecord
         }
         if($this->foreignKeyField === null){
             throw new InvalidConfigException('Classes implementing '.self::class.' must declare a property `foreignKeyField` whose value is a string of the foreign key to the table that represents the parent model/class/object of '.static::class);
-        }
-        if($this->parentAttributesInherited() === null){
-            throw new InvalidConfigException('Classes implementing '.self::class.' must declare a static property `parentAttributesInherited` whose value is a array of attributes from the parent model/class/table that should are intended to be inherited by  '.static::class);
         }
 
         // --- Sets our attribute defaults so they will pass up the parent if needed
@@ -112,7 +105,19 @@ class CtiActiveRecord extends ActiveRecord
     public function __set($name, $value)
     {
         try{
-            parent::__set($name, $value);   
+            parent::__set($name, $value);
+            if(
+                in_array($name, $this->parentAttributesInherited()) && 
+                // --- Perform this check because in init() we are setting the variables
+                // --- on the CtiActiveRecord instance and we don't want to pass that up
+                // --- to the parent model in init() beacuse it will always create a new
+                // --- record for it
+                !empty($this->_parent_model) 
+            ){
+                // --- If it's a 'shared' attribute between parent and child
+                // --- set it on the parent too
+                $this->getParentModel()->{$name} = $value;
+            }
         } catch(UnknownPropertyException $e){
             try{
                $this->getParentModel()->{$name} = $value;
@@ -141,9 +146,9 @@ class CtiActiveRecord extends ActiveRecord
     public function __call($name, $params)
     {
         try{
-            parent::__call($name, $params);
+            return parent::__call($name, $params);
         }catch(UnknownMethodException $e){
-            call_user_func_array([$this->getParentModel(), $name], $params);
+            return call_user_func_array([$this->getParentModel(), $name], $params);
         }
     }
 
@@ -158,6 +163,7 @@ class CtiActiveRecord extends ActiveRecord
         if(!parent::hasMethod($name, $checkBehaviors)){
             return $this->getParentModel()->hasMethod($name, $checkBehaviors);
         }
+        return true;
     }
 
     /**
@@ -220,7 +226,6 @@ class CtiActiveRecord extends ActiveRecord
                 return $this->parentRelation;
             }
         }
-
         return $this->_parent_model;
     }
 
@@ -383,7 +388,9 @@ class CtiActiveRecord extends ActiveRecord
             return false;
         } else {
             // --- Sets the foreign key field for this model to the id of the saved parent
+            // --- This could be improved by using Yii's primaryKey() but it works for now
             $this->{$this->foreignKeyField} = $this->getParentModel()->id;
+            $this->id = $this->getParentModel()->id; // --- Set this as well
         }
 
         return true;
@@ -482,8 +489,8 @@ class CtiActiveRecord extends ActiveRecord
         }
         $changedAttributes = [];
         foreach ($values as $name => $value) {
-            $changedAttributes[$name] = isset($this->_oldAttributes[$name]) ? $this->_oldAttributes[$name] : null;
-            $this->_oldAttributes[$name] = $value;
+            $changedAttributes[$name] = $this->getOldAttribute($name); // --- UPDATED TO NOT USE _oldAttribtues
+            $this->setOldAttribute($name, $value); // --- UPDATED TO NOT USE _oldAttribtues
         }
         $this->afterSave(false, $changedAttributes);
         return $rows;
