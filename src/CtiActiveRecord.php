@@ -153,6 +153,7 @@ class CtiActiveRecord extends ActiveRecord
         if(!parent::hasMethod($name, $checkBehaviors)){
             return $this->getParentModel()->hasMethod($name, $checkBehaviors);
         }
+        return true;
     }
 
     /**
