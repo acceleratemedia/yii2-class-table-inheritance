@@ -374,7 +374,9 @@ class CtiActiveRecord extends ActiveRecord
             return false;
         } else {
             // --- Sets the foreign key field for this model to the id of the saved parent
+            // --- This could be improved by using Yii's primaryKey() but it works for now
             $this->{$this->foreignKeyField} = $this->getParentModel()->id;
+            $this->id = $this->getParentModel()->id; // --- Set this as well
         }
 
         return true;
