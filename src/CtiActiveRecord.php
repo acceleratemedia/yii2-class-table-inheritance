@@ -136,9 +136,9 @@ class CtiActiveRecord extends ActiveRecord
     public function __call($name, $params)
     {
         try{
-            parent::__call($name, $params);
+            return parent::__call($name, $params);
         }catch(UnknownMethodException $e){
-            call_user_func_array([$this->getParentModel(), $name], $params);
+            return call_user_func_array([$this->getParentModel(), $name], $params);
         }
     }
 
