@@ -284,12 +284,16 @@ class CtiActiveRecord extends ActiveRecord
             if($name == $magic_relation_name){
                 return $this->getParentRelation();
             }
-            if(method_exists($this->getParentModel(), 'get'.ucFirst($name))){
-                $parentRelation = $this->getParentModel()->getRelation($name);
+
+            // --- Then try to get the relation from the parent itself
+            $getter = 'get'.ucFirst($name);
+            try{
+                $parentRelation = $this->getParentModel()->$getter();
                 $parentRelation->primaryModel = $this;
                 return $parentRelation->via('parentRelation');
+            } catch(InvalidArgumentException $f){
+                throw $e;
             }
-            throw $e;
         }
     }
 

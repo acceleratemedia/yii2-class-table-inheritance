@@ -23,7 +23,6 @@ class CtiActiveQuery extends ActiveQuery
     public function populate($rows)
     {
         $models = parent::populate($rows);
-
         // --- If the query is asArray apply the attributes we want to inherit from the parent
         // --- to the modelclass using CtiActiveQuery
         if ($this->asArray) {
