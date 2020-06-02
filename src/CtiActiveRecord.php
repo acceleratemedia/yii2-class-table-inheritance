@@ -249,8 +249,7 @@ class CtiActiveRecord extends ActiveRecord
      * {@inheritdoc}
      */
     public static function find() {
-        $query = new CtiActiveQuery(get_called_class());
-        return $query->innerJoinWith(['parentRelation']);
+        return new CtiActiveQuery(get_called_class());
     }
 
     /**

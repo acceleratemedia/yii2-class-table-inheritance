@@ -7,6 +7,17 @@ use yii\db\ActiveQuery;
 class CtiActiveQuery extends ActiveQuery
 {
     /**
+     * Automatically inner join with the parent relation. This should only be 
+     * used on CtiActiveRecord classes and that relation is auto-defined
+     * {@inheritdoc}
+     */
+    public function init()
+    {
+        parent::init();
+        $this->innerJoinWith(['parentRelation']);
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function populate($rows)
