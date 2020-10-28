@@ -190,8 +190,6 @@ class CtiActiveRecord extends ActiveRecord
 
     /**
      * Attributes which we want applied to the child model from the parent
-     * This must be static because we must be able to access it as a class-level
-     * property when populating models using asArray in CtiActiveQuery
      * @return array
      */
     public function parentAttributesInherited()
