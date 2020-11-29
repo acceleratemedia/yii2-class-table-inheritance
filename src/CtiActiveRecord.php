@@ -112,8 +112,9 @@ class CtiActiveRecord extends ActiveRecord
     }
 
     /**
-     * Extend the default functionality of the setter to get the properties of the parent Content model
-     * @{inheritdoc}
+     * Extend the default functionality of the setter to set the properties
+     * on the parent model if applicable
+     * {@inheritdoc}
      */
     public function __set($name, $value)
     {
@@ -228,8 +229,18 @@ class CtiActiveRecord extends ActiveRecord
     {
         if(empty($this->_parent_model)){
             if($this->isNewRecord){
-                if(!empty($this->parentAttributeDefaults())){
-                    $this->_parent_model = new $this->parentClass($this->parentAttributeDefaults());
+                // --- Apply defaults to parent and also any attributes that are
+                // --- normally inherited but may be applied to the current model
+                // --- before the parent model has been initialized
+                $attributesToApplyToParent = $this->parentAttributeDefaults();
+                $parentAttributesInherited = $this->parentAttributesInherited();
+                foreach($parentAttributesInherited as $attributeName){
+                    if(!empty($this->{$attributeName})){
+                        $attributeToApplyToParent[$attributeName] = $this->{$attributeName};
+                    }
+                }
+                if(!empty($attributesToApplyToParent)){
+                    $this->_parent_model = new $this->parentClass($attributeToApplyToParent);
                 } else {
                     $this->_parent_model = new $this->parentClass;
                 }
