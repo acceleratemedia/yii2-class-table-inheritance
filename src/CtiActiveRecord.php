@@ -236,11 +236,11 @@ class CtiActiveRecord extends ActiveRecord
                 $parentAttributesInherited = $this->parentAttributesInherited();
                 foreach($parentAttributesInherited as $attributeName){
                     if(!empty($this->{$attributeName})){
-                        $attributeToApplyToParent[$attributeName] = $this->{$attributeName};
+                        $attributesToApplyToParent[$attributeName] = $this->{$attributeName};
                     }
                 }
                 if(!empty($attributesToApplyToParent)){
-                    $this->_parent_model = new $this->parentClass($attributeToApplyToParent);
+                    $this->_parent_model = new $this->parentClass($attributesToApplyToParent);
                 } else {
                     $this->_parent_model = new $this->parentClass;
                 }
