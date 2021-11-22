@@ -1,5 +1,5 @@
 {
-    "name": "brianvb/yii2-class-table-inheritance",
+    "name": "acceleratemedia/yii2-class-table-inheritance",
     "description": "An attempt to provide the Class Table Inheritance Pattern to the Yii2 framework. Its motivation is to fake inheritance between two ActiveRecord classes.",
     "type": "yii2-extension",
     "require": {
